@@ -77,12 +77,37 @@ def age_bucket(a):
     if a < 75: return 4
     return 5
 
-def yrke_ur_valsedelsuppgift(s):
+# Extra ortnamn/geografiska ord som inte fångas av kommun-/länslistan.
+# Lägg gärna till fler här om du ser orter som slinker igenom i yrkeslistan.
+EXTRA_PLATSER = {
+    "centrum", "city", "visby", "tätort", "kommun", "kommunen", "ort", "orten",
+    "landsbygd", "landsbygden", "stad", "staden", "norr", "söder", "öster", "väster",
+}
+
+def _ar_alder(tok):
+    # "71", "71 år", "71år"
+    return re.fullmatch(r"\d+\s*(år)?", tok) is not None
+
+def yrke_ur_valsedelsuppgift(s, platser=frozenset()):
+    """Plocka ut yrket ur fritextfältet VALSEDELSUPPGIFT.
+    Tar bort åldrar ('71 år') och geografiska namn (kommuner/län/orter)
+    och returnerar första riktiga yrkesordet, i gemener. Tomt om inget finns.
+    """
     s = (s or "").strip()
     if not s:
         return ""
-    s = re.sub(r"^\s*\d+\s*,\s*", "", s)
-    return s.strip().lower()
+    for del_ in s.split(","):
+        p = del_.strip().strip(".").lower()
+        # ta bort ev. inledande "NN år " som sitter ihop med yrket
+        p = re.sub(r"^\d+\s*år\s+", "", p).strip()
+        if not p:
+            continue
+        if _ar_alder(p):                 # ren ålder, t.ex. "71" eller "71 år"
+            continue
+        if p in platser:                 # kommun-/läns-/ortnamn
+            continue
+        return p
+    return ""
 
 def read_block(html, block_id):
     m = re.search(r'<script id="%s" type="application/json">(.*?)</script>' % block_id, html, re.S)
@@ -116,6 +141,7 @@ def to_int(x, default=-1):
 def build_data(csv_text, geo, old_data):
     kom_names, kom_name_to_idx, code_to_lanidx, code_order, code_to_name = build_geo_maps(geo)
     geo_name_to_lanidx = {code_to_name[c]: code_to_lanidx[c] for c in code_order}
+    platser = {n.lower() for n in kom_names} | {l.lower() for l in LAN_LIST} | EXTRA_PLATSER
 
     # N-värden (valbar gräns 2022) från gamla lists, nyckel (vt, area, fk, lbl)
     old_N = {}
@@ -158,7 +184,7 @@ def build_data(csv_text, geo, old_data):
         if fk and fk not in fk_fullname:
             fk_fullname[fk] = g(row, "PARTIBETECKNING") or fk
         age = to_int(g(row, "ÅLDER_PÅ_VALDAGEN"))
-        yrke = yrke_ur_valsedelsuppgift(g(row, "VALSEDELSUPPGIFT"))
+        yrke = yrke_ur_valsedelsuppgift(g(row, "VALSEDELSUPPGIFT"), platser)
         kommun_namn = g(row, "FOLKBOKFÖRINGSKOMMUN")
         ordning = to_int(g(row, "ORDNING"))
         omr_kod = g(row, "VALOMRÅDESKOD").zfill(4) if g(row, "VALOMRÅDESKOD") else ""
