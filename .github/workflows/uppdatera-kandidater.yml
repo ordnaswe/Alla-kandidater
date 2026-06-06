@@ -1,0 +1,37 @@
+name: Daglig uppdatering av kandidatdata
+
+# Kör en gång per dygn (03:17 UTC) samt manuellt via "Run workflow".
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write          # behövs för att kunna committa tillbaka den uppdaterade filen
+
+jobs:
+  uppdatera:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hämta repo
+        uses: actions/checkout@v4
+
+      - name: Sätt upp Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Bygg om data från val.se
+        run: python build_kandidater.py --self-check
+
+      - name: Committa om filen ändrats
+        run: |
+          if git diff --quiet -- sveriges-kandidater.html; then
+            echo "Ingen förändring i datan – inget att committa."
+          else
+            git config user.name  "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add sveriges-kandidater.html
+            git commit -m "Auto: uppdaterad kandidatdata $(date -u +%F)"
+            git push
+          fi
