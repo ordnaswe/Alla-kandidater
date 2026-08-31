@@ -548,7 +548,13 @@ def main():
 
     new_html = html[:data_span[0]] + json.dumps(data, ensure_ascii=False, separators=(",", ":")) + html[data_span[1]:]
     open(args.html, "w", encoding="utf-8").write(new_html)
-    print(f"Klar. Skrev {args.html}: {data['n']} personer, {data['cand']} kandidaturer.")
+    written = [args.html]
+    # Skriv även index.html så att rot-adressen (GitHub Pages + Netlify) visar sajten
+    if os.path.basename(args.html) != "index.html":
+        idx = os.path.join(os.path.dirname(args.html), "index.html")
+        open(idx, "w", encoding="utf-8").write(new_html)
+        written.append(idx)
+    print(f"Klar. Skrev {', '.join(written)}: {data['n']} personer, {data['cand']} kandidaturer.")
 
 if __name__ == "__main__":
     main()
