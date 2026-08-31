@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write          # behövs för att kunna committa tillbaka den uppdaterade filen
+  contents: write          # behövs för att kunna committa tillbaka de uppdaterade filerna
 
 jobs:
   uppdatera:
@@ -24,14 +24,14 @@ jobs:
       - name: Bygg om data från val.se
         run: python build_kandidater.py --self-check
 
-      - name: Committa om filen ändrats
+      - name: Committa om filerna ändrats
         run: |
-          if git diff --quiet -- sveriges-kandidater.html; then
+          if git diff --quiet -- sveriges-kandidater.html index.html; then
             echo "Ingen förändring i datan – inget att committa."
           else
             git config user.name  "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add sveriges-kandidater.html
+            git add sveriges-kandidater.html index.html
             git commit -m "Auto: uppdaterad kandidatdata $(date -u +%F)"
             git push
           fi
